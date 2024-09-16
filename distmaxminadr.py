@@ -7,7 +7,7 @@ import plotly.express as px
 # Lista de tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
-st.title("Distancia entre Precios Máximos y Mínimos en una Fecha")
+st.title("Distancia Porcentual entre Precios Máximos y Mínimos en una Fecha")
 
 # Seleccionar la fecha para mostrar los datos
 selected_date = st.date_input("Seleccione la fecha", datetime.now().date() - timedelta(days=1))
@@ -42,40 +42,43 @@ def get_price_range(ticker, selected_date):
     max_price = day_data['High'].iloc[0]
     min_price = day_data['Low'].iloc[0]
     
-    return max_price, min_price, round(max_price - min_price, 2)
+    # Calcular la distancia porcentual
+    percentage_distance = ((max_price - min_price) / min_price) * 100 if min_price != 0 else None
+    
+    return max_price, min_price, round(percentage_distance, 2)
 
 ticker_data = []
 
 for ticker in tickers:
     try:
-        max_price, min_price, price_range = get_price_range(ticker, selected_date)
-        if max_price is None:
+        max_price, min_price, percentage_distance = get_price_range(ticker, selected_date)
+        if max_price is None or percentage_distance is None:
             continue
         
         ticker_data.append({
             'Ticker': ticker,
             'Precio Máximo': round(max_price, 2),
             'Precio Mínimo': round(min_price, 2),
-            'Distancia Máx-Mín': price_range
+            'Distancia Máx-Mín (%)': percentage_distance
         })
     except Exception as e:
         st.error(f"Error al procesar datos para {ticker}: {e}")
 
 df = pd.DataFrame(ticker_data)
 
-# Mostrar la tabla de precios máximos, mínimos y distancia entre ellos
-st.subheader(f"Distancia entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}")
+# Mostrar la tabla de precios máximos, mínimos y distancia porcentual entre ellos
+st.subheader(f"Distancia Porcentual entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}")
 st.dataframe(df)
 
 if not df.empty:
-    # Crear gráfico de barras para la distancia entre precios
-    fig = px.bar(df, x='Ticker', y='Distancia Máx-Mín', color='Distancia Máx-Mín',
+    # Crear gráfico de barras para la distancia porcentual
+    fig = px.bar(df, x='Ticker', y='Distancia Máx-Mín (%)', color='Distancia Máx-Mín (%)',
                  color_continuous_scale='Viridis',
-                 title=f"Distancia entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}",
-                 labels={'Distancia Máx-Mín': 'Distancia Máx-Mín (Precio Máximo - Precio Mínimo)'})
+                 title=f"Distancia Porcentual entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}",
+                 labels={'Distancia Máx-Mín (%)': 'Distancia Máx-Mín (%) (Porcentaje)'})
     
     # Agregar marca de agua al gráfico
-    fig.update_layout(xaxis_title='Ticker', yaxis_title='Distancia Máx-Mín (USD)', yaxis_categoryorder='total ascending')
+    fig.update_layout(xaxis_title='Ticker', yaxis_title='Distancia Máx-Mín (%)', yaxis_categoryorder='total ascending')
     fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
     
     fig.add_annotation(
