@@ -71,14 +71,17 @@ st.subheader(f"Distancia Porcentual entre Precios Máximos y Mínimos el {select
 st.dataframe(df)
 
 if not df.empty:
-    # Crear gráfico de barras para la distancia porcentual
-    fig = px.bar(df, x='Ticker', y='Distancia Máx-Mín (%)', color='Distancia Máx-Mín (%)',
-                 color_continuous_scale='Viridis',
+    # Ordenar el dataframe por la columna 'Distancia Máx-Mín (%)' en orden descendente
+    df = df.sort_values(by='Distancia Máx-Mín (%)', ascending=False)
+    
+    # Crear gráfico de barras horizontales para la distancia porcentual
+    fig = px.bar(df, y='Ticker', x='Distancia Máx-Mín (%)', color='Distancia Máx-Mín (%)',
+                 orientation='h', color_continuous_scale='Viridis',
                  title=f"Distancia Porcentual entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}",
                  labels={'Distancia Máx-Mín (%)': 'Distancia Máx-Mín (%) (Porcentaje)'})
     
     # Agregar marca de agua al gráfico
-    fig.update_layout(xaxis_title='Ticker', yaxis_title='Distancia Máx-Mín (%)', yaxis_categoryorder='total ascending')
+    fig.update_layout(xaxis_title='Distancia Máx-Mín (%)', yaxis_title='Ticker', yaxis_categoryorder='total ascending')
     fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
     
     fig.add_annotation(
