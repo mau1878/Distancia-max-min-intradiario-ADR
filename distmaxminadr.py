@@ -2,7 +2,6 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
-import plotly.express as px
 
 # Lista de tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
@@ -44,8 +43,9 @@ else:
         data = fetch_data(ticker, start_date, end_date)
         if data.empty:
             return None
+        # Añadir las columnas de precios de cierre, máximo y mínimo
         data['Distance (%)'] = data.apply(calculate_distance_for_day, axis=1)
-        return data[['Date', 'Distance (%)']].dropna()  # Drop any rows with NaN values
+        return data[['Date', 'Close', 'High', 'Low', 'Distance (%)']].dropna()  # Drop rows with NaN values
 
     # Obtener la distancia máx-mín para todas las fechas entre el rango
     all_data = []
@@ -87,6 +87,8 @@ else:
                 # Filtrar los datos para ese día y mostrar los 10 tickers con mayor distancia porcentual
                 day_data = combined_df[combined_df['Date'] == day]
                 day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
-                st.dataframe(day_data[['Ticker', 'Distance (%)']])
+                
+                # Mostrar los tickers junto con el precio de cierre, máximo, mínimo y la distancia porcentual
+                st.dataframe(day_data[['Ticker', 'Close', 'High', 'Low', 'Distance (%)']])
     else:
         st.write("No hay datos válidos disponibles para graficar.")
