@@ -26,6 +26,7 @@ else:
             if stock_data.empty:
                 st.warning(f"No se encontraron datos para {ticker}.")
                 return pd.DataFrame()
+            stock_data['Date'] = stock_data.index.date  # Ensure date is a column
             return stock_data
         except Exception as e:
             st.error(f"Error al obtener datos para {ticker}: {e}")
@@ -42,9 +43,8 @@ else:
         data = fetch_data(ticker, start_date, end_date)
         if data.empty:
             return None
-        data['Date'] = data.index.date
         data['Distance (%)'] = data.apply(calculate_distance_for_day, axis=1)
-        return data[['Date', 'Distance (%)']]
+        return data[['Date', 'Distance (%)']].dropna()  # Drop any rows with NaN values
 
     # Obtener la distancia máx-mín para todas las fechas entre el rango
     all_data = []
@@ -61,26 +61,31 @@ else:
         # Concatenar los datos de todos los tickers
         combined_df = pd.concat(all_data)
         
-        # Calcular la mediana de la distancia por cada fecha
-        median_distances = combined_df.groupby('Date').median().reset_index()
-        median_distances = median_distances.rename(columns={'Distance (%)': 'Median Max-Min Distance (%)'})
-        
-        # Ordenar por la distancia mediana en orden descendente
-        top_10_days = median_distances.sort_values(by='Median Max-Min Distance (%)', ascending=False).head(10)
-        
-        # Mostrar las 10 fechas con mayor distancia mediana
-        st.subheader(f"Top 10 días con mayor distancia porcentual mediana máx-mín entre {start_date} y {end_date}")
-        st.dataframe(top_10_days)
-
-        # Crear tablas individuales para cada fecha
-        st.subheader("Tablas para cada uno de los Top 10 días")
-        for idx, row in top_10_days.iterrows():
-            day = row['Date']
-            st.write(f"### Día: {day}")
+        # Verificar que la columna 'Date' exista
+        if 'Date' not in combined_df.columns:
+            st.error("La columna 'Date' no se encontró en los datos.")
+        else:
+            # Calcular la mediana de la distancia por cada fecha
+            combined_df['Date'] = pd.to_datetime(combined_df['Date'])  # Ensure 'Date' is in datetime format
+            median_distances = combined_df.groupby('Date')['Distance (%)'].median().reset_index()
+            median_distances = median_distances.rename(columns={'Distance (%)': 'Median Max-Min Distance (%)'})
             
-            # Filtrar los datos para ese día y mostrar los 10 tickers con mayor distancia porcentual
-            day_data = combined_df[combined_df['Date'] == day]
-            day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
-            st.dataframe(day_data[['Ticker', 'Distance (%)']])
+            # Ordenar por la distancia mediana en orden descendente
+            top_10_days = median_distances.sort_values(by='Median Max-Min Distance (%)', ascending=False).head(10)
+            
+            # Mostrar las 10 fechas con mayor distancia mediana
+            st.subheader(f"Top 10 días con mayor distancia porcentual mediana máx-mín entre {start_date} y {end_date}")
+            st.dataframe(top_10_days)
+
+            # Crear tablas individuales para cada fecha
+            st.subheader("Tablas para cada uno de los Top 10 días")
+            for idx, row in top_10_days.iterrows():
+                day = row['Date'].date()  # Convert to date format for matching
+                st.write(f"### Día: {day}")
+                
+                # Filtrar los datos para ese día y mostrar los 10 tickers con mayor distancia porcentual
+                day_data = combined_df[combined_df['Date'] == day]
+                day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
+                st.dataframe(day_data[['Ticker', 'Distance (%)']])
     else:
         st.write("No hay datos válidos disponibles para graficar.")
