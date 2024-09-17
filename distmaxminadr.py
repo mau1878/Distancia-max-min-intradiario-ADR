@@ -27,6 +27,7 @@ else:
                 st.warning(f"No se encontraron datos para {ticker}.")
                 return pd.DataFrame()
             stock_data['Date'] = stock_data.index.date  # Ensure date is a column
+            stock_data = stock_data.reset_index(drop=True)  # Avoid ambiguity
             return stock_data
         except Exception as e:
             st.error(f"Error al obtener datos para {ticker}: {e}")
@@ -60,14 +61,14 @@ else:
     if all_data:
         # Concatenar los datos de todos los tickers
         combined_df = pd.concat(all_data)
-        
+
         # Verificar que la columna 'Date' exista
         if 'Date' not in combined_df.columns:
             st.error("La columna 'Date' no se encontró en los datos.")
         else:
             # Calcular la mediana de la distancia por cada fecha
             combined_df['Date'] = pd.to_datetime(combined_df['Date'])  # Ensure 'Date' is in datetime format
-            median_distances = combined_df.groupby('Date')['Distance (%)'].median().reset_index()
+            median_distances = combined_df.groupby('Date')['Distance (%)'].median().reset_index()  # Reset index here
             median_distances = median_distances.rename(columns={'Distance (%)': 'Median Max-Min Distance (%)'})
             
             # Ordenar por la distancia mediana en orden descendente
