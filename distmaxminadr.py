@@ -7,92 +7,80 @@ import plotly.express as px
 # Lista de tickers
 tickers = ['BBAR', 'BMA', 'CEPU', 'CRESY', 'EDN', 'GGAL', 'IRS', 'LOMA', 'PAM', 'SUPV', 'TEO', 'TGS', 'YPF']
 
-st.title("Distancia Porcentual entre Precios Máximos y Mínimos en una Fecha")
+st.title("Análisis de Distancia Porcentual Máx-Mín entre Fechas")
 
-# Seleccionar la fecha para mostrar los datos
-selected_date = st.date_input("Seleccione la fecha", datetime.now().date() - timedelta(days=1))
+# Seleccionar el rango de fechas
+start_date, end_date = st.date_input(
+    "Seleccione el rango de fechas",
+    [datetime.now().date() - timedelta(days=30), datetime.now().date()]
+)
 
-@st.cache_data
-def fetch_data(ticker, selected_date):
-    try:
-        start_date = (selected_date - timedelta(days=1)).strftime('%Y-%m-%d')
-        end_date = (selected_date + timedelta(days=1)).strftime('%Y-%m-%d')
-        stock_data = yf.download(ticker, start=start_date, end=end_date)
-        
-        if stock_data.empty:
-            st.warning(f"No se encontraron datos para {ticker}.")
-            return pd.DataFrame()
-        
-        return stock_data
-    except Exception as e:
-        st.error(f"Error al obtener datos para {ticker}: {e}")
-        return pd.DataFrame()
-
-def get_price_range(ticker, selected_date):
-    data = fetch_data(ticker, selected_date)
-    
-    if data.empty or selected_date not in data.index.date:
-        return None, None, None
-    
-    # Obtener los precios máximo y mínimo
-    day_data = data[data.index.date == selected_date]
-    if day_data.empty:
-        return None, None, None
-    
-    max_price = day_data['High'].iloc[0]
-    min_price = day_data['Low'].iloc[0]
-    
-    # Calcular la distancia porcentual
-    percentage_distance = ((max_price - min_price) / min_price) * 100 if min_price != 0 else None
-    
-    return max_price, min_price, round(percentage_distance, 2)
-
-ticker_data = []
-
-for ticker in tickers:
-    try:
-        max_price, min_price, percentage_distance = get_price_range(ticker, selected_date)
-        if max_price is None or percentage_distance is None:
-            continue
-        
-        ticker_data.append({
-            'Ticker': ticker,
-            'Precio Máximo': round(max_price, 2),
-            'Precio Mínimo': round(min_price, 2),
-            'Distancia Máx-Mín (%)': percentage_distance
-        })
-    except Exception as e:
-        st.error(f"Error al procesar datos para {ticker}: {e}")
-
-df = pd.DataFrame(ticker_data)
-
-# Mostrar la tabla de precios máximos, mínimos y distancia porcentual entre ellos
-st.subheader(f"Distancia Porcentual entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}")
-st.dataframe(df)
-
-if not df.empty:
-    # Ordenar el dataframe por la columna 'Distancia Máx-Mín (%)' en orden descendente
-    df = df.sort_values(by='Distancia Máx-Mín (%)', ascending=False)
-    
-    # Crear gráfico de barras horizontales para la distancia porcentual
-    fig = px.bar(df, y='Ticker', x='Distancia Máx-Mín (%)', color='Distancia Máx-Mín (%)',
-                 orientation='h', color_continuous_scale='Viridis',
-                 title=f"Distancia Porcentual entre Precios Máximos y Mínimos el {selected_date.strftime('%Y-%m-%d')}",
-                 labels={'Distancia Máx-Mín (%)': 'Distancia Máx-Mín (%) (Porcentaje)'})
-    
-    # Agregar marca de agua al gráfico
-    fig.update_layout(xaxis_title='Distancia Máx-Mín (%)', yaxis_title='Ticker', yaxis_categoryorder='total ascending')
-    fig.update_traces(marker=dict(line=dict(width=1, color='rgba(0,0,0,0.2)')))
-    
-    fig.add_annotation(
-        text="MTaurus - X: MTaurus_ok",
-        xref="paper", yref="paper",
-        x=0.5, y=-0.1,
-        showarrow=False,
-        font=dict(size=10, color="rgba(0,0,0,0.5)"),
-        align="center"
-    )
-    
-    st.plotly_chart(fig)
+# Verificar que las fechas sean válidas
+if start_date > end_date:
+    st.error("La fecha de inicio no puede ser posterior a la fecha de fin.")
 else:
-    st.write("No hay datos válidos disponibles para graficar.")
+    @st.cache_data
+    def fetch_data(ticker, start_date, end_date):
+        try:
+            stock_data = yf.download(ticker, start=start_date, end=end_date)
+            if stock_data.empty:
+                st.warning(f"No se encontraron datos para {ticker}.")
+                return pd.DataFrame()
+            return stock_data
+        except Exception as e:
+            st.error(f"Error al obtener datos para {ticker}: {e}")
+            return pd.DataFrame()
+
+    def calculate_distance_for_day(day_data):
+        max_price = day_data['High']
+        min_price = day_data['Low']
+        # Calcular la distancia porcentual
+        percentage_distance = ((max_price - min_price) / min_price) * 100 if min_price != 0 else None
+        return percentage_distance
+
+    def get_distance_data(ticker, start_date, end_date):
+        data = fetch_data(ticker, start_date, end_date)
+        if data.empty:
+            return None
+        data['Date'] = data.index.date
+        data['Distance (%)'] = data.apply(calculate_distance_for_day, axis=1)
+        return data[['Date', 'Distance (%)']]
+
+    # Obtener la distancia máx-mín para todas las fechas entre el rango
+    all_data = []
+    for ticker in tickers:
+        try:
+            ticker_data = get_distance_data(ticker, start_date, end_date)
+            if ticker_data is not None:
+                ticker_data['Ticker'] = ticker
+                all_data.append(ticker_data)
+        except Exception as e:
+            st.error(f"Error al procesar datos para {ticker}: {e}")
+
+    if all_data:
+        # Concatenar los datos de todos los tickers
+        combined_df = pd.concat(all_data)
+        
+        # Calcular la mediana de la distancia por cada fecha
+        median_distances = combined_df.groupby('Date').median().reset_index()
+        median_distances = median_distances.rename(columns={'Distance (%)': 'Median Max-Min Distance (%)'})
+        
+        # Ordenar por la distancia mediana en orden descendente
+        top_10_days = median_distances.sort_values(by='Median Max-Min Distance (%)', ascending=False).head(10)
+        
+        # Mostrar las 10 fechas con mayor distancia mediana
+        st.subheader(f"Top 10 días con mayor distancia porcentual mediana máx-mín entre {start_date} y {end_date}")
+        st.dataframe(top_10_days)
+
+        # Crear tablas individuales para cada fecha
+        st.subheader("Tablas para cada uno de los Top 10 días")
+        for idx, row in top_10_days.iterrows():
+            day = row['Date']
+            st.write(f"### Día: {day}")
+            
+            # Filtrar los datos para ese día y mostrar los 10 tickers con mayor distancia porcentual
+            day_data = combined_df[combined_df['Date'] == day]
+            day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
+            st.dataframe(day_data[['Ticker', 'Distance (%)']])
+    else:
+        st.write("No hay datos válidos disponibles para graficar.")
