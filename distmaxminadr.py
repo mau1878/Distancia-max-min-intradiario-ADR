@@ -96,4 +96,4 @@ else:
                     day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
                     st.dataframe(day_data[['Ticker', 'Close', 'High', 'Low', 'Distance (%)']])
     else:
-       
+        st.write("No hay datos válidos disponibles para graficar.")
