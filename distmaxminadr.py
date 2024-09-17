@@ -55,8 +55,12 @@ else:
         try:
             ticker_data = get_distance_data(ticker, start_date, end_date)
             if ticker_data is not None:
+                st.write(f"Datos para {ticker}:")
+                st.dataframe(ticker_data)  # Display fetched data for debugging
                 ticker_data['Ticker'] = ticker
                 all_data.append(ticker_data)
+            else:
+                st.warning(f"No se encontraron datos para {ticker}.")
         except Exception as e:
             st.error(f"Error al procesar datos para {ticker}: {e}")
 
