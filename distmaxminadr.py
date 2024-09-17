@@ -35,8 +35,10 @@ else:
     def calculate_distance_for_day(day_data):
         max_price = day_data['High']
         min_price = day_data['Low']
+        if min_price == 0:
+            return None
         # Calcular la distancia porcentual
-        percentage_distance = ((max_price - min_price) / min_price) * 100 if min_price != 0 else None
+        percentage_distance = ((max_price - min_price) / min_price) * 100
         return percentage_distance
 
     def get_distance_data(ticker, start_date, end_date):
@@ -86,9 +88,12 @@ else:
                 
                 # Filtrar los datos para ese día y mostrar los 10 tickers con mayor distancia porcentual
                 day_data = combined_df[combined_df['Date'] == day]
-                day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
                 
-                # Mostrar los tickers junto con el precio de cierre, máximo, mínimo y la distancia porcentual
-                st.dataframe(day_data[['Ticker', 'Close', 'High', 'Low', 'Distance (%)']])
+                if day_data.empty:
+                    st.warning(f"No data available for {day}.")
+                else:
+                    # Mostrar los tickers junto con el precio de cierre, máximo, mínimo y la distancia porcentual
+                    day_data = day_data.sort_values(by='Distance (%)', ascending=False).head(10)
+                    st.dataframe(day_data[['Ticker', 'Close', 'High', 'Low', 'Distance (%)']])
     else:
-        st.write("No hay datos válidos disponibles para graficar.")
+       
